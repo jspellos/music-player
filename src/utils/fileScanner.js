@@ -1,6 +1,18 @@
 import { db } from '../stores/db';
 
 const AUDIO_EXTENSIONS = ['.mp3', '.m4a', '.wav', '.ogg', '.flac', '.aac', '.wma'];
+const VIDEO_EXTENSIONS = ['.mp4', '.webm', '.mkv', '.avi', '.mov', '.m4v'];
+const MEDIA_EXTENSIONS = [...AUDIO_EXTENSIONS, ...VIDEO_EXTENSIONS];
+
+export function isVideoFile(filename) {
+  const ext = filename.toLowerCase().slice(filename.lastIndexOf('.'));
+  return VIDEO_EXTENSIONS.includes(ext);
+}
+
+export function isAudioFile(filename) {
+  const ext = filename.toLowerCase().slice(filename.lastIndexOf('.'));
+  return AUDIO_EXTENSIONS.includes(ext);
+}
 
 export async function scanDirectory(directoryHandle, onProgress) {
   const tracks = [];
@@ -10,12 +22,13 @@ export async function scanDirectory(directoryHandle, onProgress) {
     for await (const entry of handle.values()) {
       if (entry.kind === 'file') {
         const ext = entry.name.toLowerCase().slice(entry.name.lastIndexOf('.'));
-        if (AUDIO_EXTENSIONS.includes(ext)) {
+        if (MEDIA_EXTENSIONS.includes(ext)) {
           // Parse artist/album from path
           const pathParts = path.split('/').filter(Boolean);
           const artist = pathParts[0] || 'Unknown Artist';
           const album = pathParts[1] || 'Unknown Album';
           const title = entry.name.replace(/\.[^/.]+$/, '');
+          const isVideo = VIDEO_EXTENSIONS.includes(ext);
           
           tracks.push({
             path: path + '/' + entry.name,
@@ -23,7 +36,8 @@ export async function scanDirectory(directoryHandle, onProgress) {
             artist,
             album,
             fileHandle: entry,
-            duration: 0 // We'll get this when playing
+            duration: 0,
+            isVideo
           });
           
           scanned++;

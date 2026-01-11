@@ -1,12 +1,44 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
-export function NowPlayingQueue({ queue, queueIndex, onReorder, onRemove, onPlay, onClear }) {
+export function NowPlayingQueue({ queue, queueIndex, currentTime, onReorder, onRemove, onPlay, onClear }) {
   const { setNodeRef, isOver } = useDroppable({
     id: 'queue-drop-zone'
   });
+
+  // Calculate total and remaining duration
+  const { totalDuration, remainingDuration } = useMemo(() => {
+    let total = 0;
+    let remaining = 0;
+    
+    queue.forEach((track, index) => {
+      const trackDuration = track.duration || 0;
+      total += trackDuration;
+      
+      if (index > queueIndex) {
+        remaining += trackDuration;
+      } else if (index === queueIndex) {
+        // Add remaining time of current track
+        remaining += Math.max(0, trackDuration - (currentTime || 0));
+      }
+    });
+    
+    return { totalDuration: total, remainingDuration: remaining };
+  }, [queue, queueIndex, currentTime]);
+
+  const formatDuration = (seconds) => {
+    if (!seconds || !isFinite(seconds)) return '0:00';
+    const hrs = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    const secs = Math.floor(seconds % 60);
+    
+    if (hrs > 0) {
+      return `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
 
   return (
     <div 
@@ -16,10 +48,18 @@ export function NowPlayingQueue({ queue, queueIndex, onReorder, onRemove, onPlay
       }`}
     >
       <div className="p-3 border-b border-gray-200 bg-white flex items-center justify-between">
-        <h2 className="font-semibold text-gray-800">
-          Now Playing
-          {queue.length > 0 && <span className="text-gray-400 font-normal ml-2">({queue.length})</span>}
-        </h2>
+        <div>
+          <h2 className="font-semibold text-gray-800">
+            Now Playing
+            {queue.length > 0 && <span className="text-gray-400 font-normal ml-2">({queue.length})</span>}
+          </h2>
+          {queue.length > 0 && remainingDuration > 0 && (
+            <div className="text-xs text-gray-500">
+              {formatDuration(remainingDuration)} remaining
+              {totalDuration !== remainingDuration && ` • ${formatDuration(totalDuration)} total`}
+            </div>
+          )}
+        </div>
         {queue.length > 0 && (
           <button
             onClick={onClear}
@@ -105,8 +145,9 @@ function SortableQueueItem({ track, index, isPlaying, onPlay, onRemove }) {
         onClick={onPlay}
         className="flex-1 text-left truncate min-w-0"
       >
-        <div className={`text-sm truncate ${isPlaying ? 'text-blue-700 font-medium' : 'text-gray-800'}`}>
-          {track.title}
+        <div className={`text-sm truncate flex items-center gap-1 ${isPlaying ? 'text-blue-700 font-medium' : 'text-gray-800'}`}>
+          {track.isVideo && <VideoIcon />}
+          <span className="truncate">{track.title}</span>
         </div>
         <div className="text-xs text-gray-500 truncate">
           {track.artist} — {track.album}
@@ -144,6 +185,14 @@ function DropIcon({ className }) {
   return (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+    </svg>
+  );
+}
+
+function VideoIcon() {
+  return (
+    <svg className="w-4 h-4 text-purple-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
     </svg>
   );
 }

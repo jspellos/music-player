@@ -1,8 +1,11 @@
 class AudioEngine {
   constructor() {
     this.audio = new Audio();
+    this.video = document.createElement('video');
+    this.activeElement = this.audio; // Current media element (audio or video)
     this.audioContext = null;
     this.sourceNode = null;
+    this.videoSourceNode = null;
     this.gainNode = null;
     this.filters = [];
     this.limiter = null;
@@ -10,17 +13,31 @@ class AudioEngine {
     this.onEndedCallback = null;
     this.onTimeUpdateCallback = null;
     this.isInitialized = false;
+    this.isVideo = false;
     
     // Set up audio element events
     this.audio.addEventListener('ended', () => {
-      if (this.onEndedCallback) {
+      if (!this.isVideo && this.onEndedCallback) {
         this.onEndedCallback();
       }
     });
     
     this.audio.addEventListener('timeupdate', () => {
-      if (this.onTimeUpdateCallback) {
+      if (!this.isVideo && this.onTimeUpdateCallback) {
         this.onTimeUpdateCallback(this.audio.currentTime);
+      }
+    });
+    
+    // Set up video element events
+    this.video.addEventListener('ended', () => {
+      if (this.isVideo && this.onEndedCallback) {
+        this.onEndedCallback();
+      }
+    });
+    
+    this.video.addEventListener('timeupdate', () => {
+      if (this.isVideo && this.onTimeUpdateCallback) {
+        this.onTimeUpdateCallback(this.video.currentTime);
       }
     });
   }
@@ -61,7 +78,7 @@ class AudioEngine {
     // Create gain node for volume
     this.gainNode = this.audioContext.createGain();
     
-    // Connect the chain: source -> filters -> limiter -> gain -> destination
+    // Connect the audio chain: source -> filters -> limiter -> gain -> destination
     let lastNode = this.sourceNode;
     for (const filter of this.filters) {
       lastNode.connect(filter);
@@ -74,9 +91,25 @@ class AudioEngine {
     this.isInitialized = true;
   }
 
-  async loadTrack(fileHandle) {
+  async initializeVideo() {
+    if (this.videoSourceNode) return;
+    
+    await this.initialize();
+    
+    // Create source from video element
+    this.videoSourceNode = this.audioContext.createMediaElementSource(this.video);
+    
+    // Connect video to the same chain (starting at first filter)
+    this.videoSourceNode.connect(this.filters[0]);
+  }
+
+  async loadTrack(fileHandle, isVideo = false) {
     // Initialize audio context on first interaction (required by browsers)
     await this.initialize();
+    
+    if (isVideo) {
+      await this.initializeVideo();
+    }
     
     // Resume context if suspended
     if (this.audioContext.state === 'suspended') {
@@ -88,46 +121,61 @@ class AudioEngine {
       URL.revokeObjectURL(this.currentUrl);
     }
     
+    // Stop current playback
+    this.audio.pause();
+    this.video.pause();
+    
     // Get file and create URL
     const file = await fileHandle.getFile();
     this.currentUrl = URL.createObjectURL(file);
+    this.isVideo = isVideo;
+    this.activeElement = isVideo ? this.video : this.audio;
     
     return new Promise((resolve, reject) => {
-      this.audio.src = this.currentUrl;
+      this.activeElement.src = this.currentUrl;
       
-      this.audio.onloadedmetadata = () => {
+      this.activeElement.onloadedmetadata = () => {
         resolve();
       };
       
-      this.audio.onerror = (e) => {
-        reject(new Error('Failed to load audio: ' + e.message));
+      this.activeElement.onerror = (e) => {
+        reject(new Error('Failed to load media: ' + e.message));
       };
     });
+  }
+
+  getVideoElement() {
+    return this.video;
+  }
+
+  getIsVideo() {
+    return this.isVideo;
   }
 
   play() {
     if (this.audioContext && this.audioContext.state === 'suspended') {
       this.audioContext.resume();
     }
-    this.audio.play();
+    this.activeElement.play();
   }
 
   pause() {
-    this.audio.pause();
+    this.activeElement.pause();
   }
 
   stop() {
-    this.audio.pause();
-    this.audio.currentTime = 0;
+    this.activeElement.pause();
+    this.activeElement.currentTime = 0;
   }
 
   seek(time) {
-    this.audio.currentTime = time;
+    this.activeElement.currentTime = time;
   }
 
   setVolume(value) {
     // value is 0-100
     this.audio.volume = value / 100;
+    this.video.volume = value / 100;
   }
 
   setEQ(band, value) {
@@ -145,15 +193,15 @@ class AudioEngine {
   }
 
   getDuration() {
-    return this.audio.duration || 0;
+    return this.activeElement.duration || 0;
   }
 
   getCurrentTime() {
-    return this.audio.currentTime || 0;
+    return this.activeElement.currentTime || 0;
   }
 
   getState() {
-    return this.audio.paused ? 'paused' : 'playing';
+    return this.activeElement.paused ? 'paused' : 'playing';
   }
 
   onEnded(callback) {
@@ -166,7 +214,9 @@ class AudioEngine {
 
   dispose() {
     this.audio.pause();
+    this.video.pause();
     this.audio.src = '';
+    this.video.src = '';
     if (this.currentUrl) {
       URL.revokeObjectURL(this.currentUrl);
     }

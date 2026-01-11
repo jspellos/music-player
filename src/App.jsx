@@ -5,6 +5,7 @@ import { NowPlayingQueue } from './components/NowPlayingQueue';
 import { PlayerControls } from './components/PlayerControls';
 import { Equalizer } from './components/Equalizer';
 import { PlaylistPanel } from './components/PlaylistPanel';
+import { VideoPlayer } from './components/VideoPlayer';
 import { scanDirectory } from './utils/fileScanner';
 import { getSetting, setSetting } from './stores/db';
 import { audioEngine } from './utils/audioEngine';
@@ -23,6 +24,7 @@ function App() {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(80);
+  const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   
   // Queue state - stores full track objects
   const [queue, setQueue] = useState([]);
@@ -93,11 +95,24 @@ function App() {
 
   const playTrackInternal = async (track, fileHandle) => {
     try {
-      await audioEngine.loadTrack(fileHandle);
+      const isVideo = track.isVideo || false;
+      await audioEngine.loadTrack(fileHandle, isVideo);
       audioEngine.play();
-      setCurrentTrack(track);
+      
+      // Get and store the duration
+      const trackDuration = audioEngine.getDuration();
+      
+      // Update the track in the queue with its duration
+      setQueue(currentQueue => 
+        currentQueue.map(t => 
+          t.id === track.id ? { ...t, duration: trackDuration } : t
+        )
+      );
+      
+      setCurrentTrack({ ...track, duration: trackDuration });
       setIsPlaying(true);
-      setDuration(audioEngine.getDuration());
+      setIsVideoPlaying(isVideo);
+      setDuration(trackDuration);
       setCurrentTime(0);
     } catch (error) {
       console.error('Error playing track:', error);
@@ -162,15 +177,20 @@ function App() {
       const tracksWithIds = [];
       let id = 1;
       
+      const AUDIO_EXTENSIONS = ['.mp3', '.m4a', '.wav', '.ogg', '.flac', '.aac', '.wma'];
+      const VIDEO_EXTENSIONS = ['.mp4', '.webm', '.mkv', '.avi', '.mov', '.m4v'];
+      const MEDIA_EXTENSIONS = [...AUDIO_EXTENSIONS, ...VIDEO_EXTENSIONS];
+      
       async function collectHandles(dirHandle, path = '') {
         for await (const entry of dirHandle.values()) {
           if (entry.kind === 'file') {
             const ext = entry.name.toLowerCase().slice(entry.name.lastIndexOf('.'));
-            if (['.mp3', '.m4a', '.wav', '.ogg', '.flac', '.aac'].includes(ext)) {
+            if (MEDIA_EXTENSIONS.includes(ext)) {
               const fullPath = path + '/' + entry.name;
               const track = scannedTracks.find(t => t.path === fullPath);
               if (track) {
                 track.id = id++;
+                track.isVideo = VIDEO_EXTENSIONS.includes(ext);
                 fileHandlesRef.current.set(track.id, entry);
                 tracksWithIds.push(track);
               }
@@ -190,6 +210,7 @@ function App() {
       setQueueIndex(-1);
       setCurrentTrack(null);
       setIsPlaying(false);
+      setIsVideoPlaying(false);
       
     } catch (error) {
       if (error.name !== 'AbortError') {
@@ -301,6 +322,7 @@ function App() {
     setQueueIndex(-1);
     setCurrentTrack(null);
     setIsPlaying(false);
+    setIsVideoPlaying(false);
     audioEngine.stop();
   }, []);
 
@@ -366,6 +388,7 @@ function App() {
     setQueueIndex(-1);
     setCurrentTrack(null);
     setIsPlaying(false);
+    setIsVideoPlaying(false);
     audioEngine.stop();
   }, []);
 
@@ -520,16 +543,31 @@ function App() {
             onMouseDown={handleResizeStart}
           />
 
-          {/* Queue */}
-          <div className="flex-1 min-w-0">
-            <NowPlayingQueue
-              queue={queue}
-              queueIndex={queueIndex}
-              onReorder={handleReorderQueue}
-              onRemove={handleRemoveFromQueue}
-              onPlay={handlePlayFromQueue}
-              onClear={handleClearQueue}
-            />
+          {/* Queue and Video */}
+          <div className="flex-1 min-w-0 flex flex-col">
+            {/* Video Player - shows when playing video */}
+            {isVideoPlaying && (
+              <div className="p-4 bg-gray-900">
+                <VideoPlayer 
+                  isVisible={isVideoPlaying}
+                  isPlaying={isPlaying}
+                  onTogglePlay={handleTogglePlay}
+                />
+              </div>
+            )}
+            
+            {/* Queue */}
+            <div className={`${isVideoPlaying ? 'flex-1 min-h-0' : 'h-full'}`}>
+              <NowPlayingQueue
+                queue={queue}
+                queueIndex={queueIndex}
+                currentTime={currentTime}
+                onReorder={handleReorderQueue}
+                onRemove={handleRemoveFromQueue}
+                onPlay={handlePlayFromQueue}
+                onClear={handleClearQueue}
+              />
+            </div>
           </div>
         </div>
 
