@@ -10,6 +10,11 @@ import { scanDirectory } from './utils/fileScanner';
 import { getSetting, setSetting } from './stores/db';
 import { audioEngine } from './utils/audioEngine';
 
+// Detect if we're on mobile or if File System Access API is not supported
+const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+const hasFileSystemAccess = 'showDirectoryPicker' in window;
+const useFallbackPicker = isMobile || !hasFileSystemAccess;
+
 function App() {
   const [tracks, setTracks] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -39,6 +44,9 @@ function App() {
   
   // File handles stored in memory (can't persist these)
   const fileHandlesRef = useRef(new Map());
+  
+  // Fallback file input for mobile
+  const fileInputRef = useRef(null);
   
   // Refs to access current state in callbacks
   const queueRef = useRef(queue);
@@ -160,6 +168,13 @@ function App() {
   }, [handleAutoNext]);
 
   const selectFolder = async () => {
+    if (useFallbackPicker) {
+      // Trigger the hidden file input for mobile
+      fileInputRef.current?.click();
+      return;
+    }
+    
+    // Desktop: use File System Access API
     try {
       const handle = await window.showDirectoryPicker({
         mode: 'read'
@@ -218,6 +233,65 @@ function App() {
       }
       setIsLoading(false);
     }
+  };
+
+  // Handle mobile file input change
+  const handleMobileFileSelect = async (event) => {
+    const files = Array.from(event.target.files || []);
+    if (files.length === 0) return;
+    
+    setIsLoading(true);
+    setScanProgress(0);
+    fileHandlesRef.current.clear();
+    
+    const AUDIO_EXTENSIONS = ['.mp3', '.m4a', '.wav', '.ogg', '.flac', '.aac', '.wma'];
+    const VIDEO_EXTENSIONS = ['.mp4', '.webm', '.mkv', '.avi', '.mov', '.m4v'];
+    const MEDIA_EXTENSIONS = [...AUDIO_EXTENSIONS, ...VIDEO_EXTENSIONS];
+    
+    const tracksWithIds = [];
+    let id = 1;
+    
+    for (const file of files) {
+      const ext = file.name.toLowerCase().slice(file.name.lastIndexOf('.'));
+      if (MEDIA_EXTENSIONS.includes(ext)) {
+        // Parse path from webkitRelativePath
+        const relativePath = file.webkitRelativePath || file.name;
+        const pathParts = relativePath.split('/').filter(Boolean);
+        
+        // Artist is first folder, album is second (if exists)
+        const artist = pathParts.length > 2 ? pathParts[1] : (pathParts.length > 1 ? pathParts[0] : 'Unknown Artist');
+        const album = pathParts.length > 2 ? pathParts[2] : (pathParts.length > 1 ? pathParts[1] : 'Unknown Album');
+        const title = file.name.replace(/\.[^/.]+$/, '');
+        const isVideo = VIDEO_EXTENSIONS.includes(ext);
+        
+        const track = {
+          id: id++,
+          path: '/' + relativePath,
+          title,
+          artist,
+          album,
+          isVideo,
+          duration: 0,
+          file // Store the File object directly for mobile
+        };
+        
+        fileHandlesRef.current.set(track.id, file);
+        tracksWithIds.push(track);
+        setScanProgress(tracksWithIds.length);
+      }
+    }
+    
+    setTracks(tracksWithIds);
+    setHasFolder(true);
+    setIsLoading(false);
+    setQueue([]);
+    setQueueIndex(-1);
+    setCurrentTrack(null);
+    setIsPlaying(false);
+    setIsVideoPlaying(false);
+    
+    // Clear the input so the same folder can be selected again
+    event.target.value = '';
   };
 
   const handlePlayTrack = useCallback((track) => {
@@ -470,13 +544,31 @@ function App() {
               <p>Scanning... {scanProgress} tracks found</p>
             </div>
           ) : (
-            <button
-              onClick={selectFolder}
-              className="bg-blue-500 hover:bg-blue-600 text-white font-medium py-3 px-6 rounded-lg transition shadow-md"
-            >
-              Select Music Folder
-            </button>
+            <>
+              <button
+                onClick={selectFolder}
+                className="bg-blue-500 hover:bg-blue-600 text-white font-medium py-3 px-6 rounded-lg transition shadow-md"
+              >
+                Select Music Folder
+              </button>
+              {useFallbackPicker && (
+                <p className="text-xs text-gray-400 mt-3">
+                  Mobile mode: Select your music folder from the file picker
+                </p>
+              )}
+            </>
           )}
+          
+          {/* Hidden file input for mobile fallback */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            webkitdirectory=""
+            directory=""
+            multiple
+            onChange={handleMobileFileSelect}
+            className="hidden"
+          />
         </div>
       </div>
     );
@@ -595,6 +687,17 @@ function App() {
           queue={queue}
           tracks={tracks}
           onLoadPlaylist={handleLoadPlaylist}
+        />
+        
+        {/* Hidden file input for mobile fallback */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          webkitdirectory=""
+          directory=""
+          multiple
+          onChange={handleMobileFileSelect}
+          className="hidden"
         />
       </div>
 

@@ -103,7 +103,7 @@ class AudioEngine {
     this.videoSourceNode.connect(this.filters[0]);
   }
 
-  async loadTrack(fileHandle, isVideo = false) {
+  async loadTrack(fileOrHandle, isVideo = false) {
     // Initialize audio context on first interaction (required by browsers)
     await this.initialize();
     
@@ -125,8 +125,16 @@ class AudioEngine {
     this.audio.pause();
     this.video.pause();
     
-    // Get file and create URL
-    const file = await fileHandle.getFile();
+    // Get file - handle both FileHandle (desktop) and File (mobile) objects
+    let file;
+    if (fileOrHandle instanceof File) {
+      file = fileOrHandle;
+    } else if (fileOrHandle.getFile) {
+      file = await fileOrHandle.getFile();
+    } else {
+      throw new Error('Invalid file or handle');
+    }
+    
     this.currentUrl = URL.createObjectURL(file);
     this.isVideo = isVideo;
     this.activeElement = isVideo ? this.video : this.audio;
