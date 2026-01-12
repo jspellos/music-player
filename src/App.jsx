@@ -319,20 +319,77 @@ function App() {
     });
   }, []);
 
-  const handleAddToQueue = useCallback((track) => {
+  const handleAddToQueue = useCallback(async (track) => {
+    // If we don't have duration yet, try to get it
+    let trackWithDuration = track;
+    if (!track.duration) {
+      const fileHandle = fileHandlesRef.current.get(track.id);
+      if (fileHandle) {
+        try {
+          const file = fileHandle instanceof File ? fileHandle : await fileHandle.getFile();
+          const url = URL.createObjectURL(file);
+          const audio = new Audio();
+          
+          trackWithDuration = await new Promise((resolve) => {
+            audio.onloadedmetadata = () => {
+              URL.revokeObjectURL(url);
+              resolve({ ...track, duration: audio.duration });
+            };
+            audio.onerror = () => {
+              URL.revokeObjectURL(url);
+              resolve(track); // Return track without duration on error
+            };
+            audio.src = url;
+          });
+        } catch (e) {
+          console.error('Error getting duration:', e);
+        }
+      }
+    }
+    
     setQueue(currentQueue => {
       // Don't add duplicates
-      if (currentQueue.some(t => t.id === track.id)) {
+      if (currentQueue.some(t => t.id === trackWithDuration.id)) {
         return currentQueue;
       }
-      return [...currentQueue, track];
+      return [...currentQueue, trackWithDuration];
     });
   }, []);
 
-  const handleAddAlbumToQueue = useCallback((albumTracks) => {
+  const handleAddAlbumToQueue = useCallback(async (albumTracks) => {
+    // Get durations for all tracks that don't have them
+    const tracksWithDurations = await Promise.all(
+      albumTracks.map(async (track) => {
+        if (track.duration) return track;
+        
+        const fileHandle = fileHandlesRef.current.get(track.id);
+        if (!fileHandle) return track;
+        
+        try {
+          const file = fileHandle instanceof File ? fileHandle : await fileHandle.getFile();
+          const url = URL.createObjectURL(file);
+          const audio = new Audio();
+          
+          return await new Promise((resolve) => {
+            audio.onloadedmetadata = () => {
+              URL.revokeObjectURL(url);
+              resolve({ ...track, duration: audio.duration });
+            };
+            audio.onerror = () => {
+              URL.revokeObjectURL(url);
+              resolve(track);
+            };
+            audio.src = url;
+          });
+        } catch (e) {
+          return track;
+        }
+      })
+    );
+    
     setQueue(currentQueue => {
       // Filter out duplicates
-      const newTracks = albumTracks.filter(
+      const newTracks = tracksWithDurations.filter(
         track => !currentQueue.some(t => t.id === track.id)
       );
       return [...currentQueue, ...newTracks];
@@ -487,7 +544,7 @@ function App() {
     }
   };
 
-  const handleDragEnd = (event) => {
+  const handleDragEnd = async (event) => {
     const { active, over } = event;
     setActiveDragItem(null);
     
@@ -496,7 +553,7 @@ function App() {
     // Check if it's an album being dropped
     if (active.data.current?.album) {
       if (over.id === 'queue-drop-zone' || over.data.current?.sortable) {
-        handleAddAlbumToQueue(active.data.current.album.tracks);
+        await handleAddAlbumToQueue(active.data.current.album.tracks);
       }
       return;
     }
@@ -505,7 +562,7 @@ function App() {
     if (active.data.current?.track) {
       // Dropping on queue drop zone or any queue item
       if (over.id === 'queue-drop-zone' || over.data.current?.sortable) {
-        handleAddToQueue(active.data.current.track);
+        await handleAddToQueue(active.data.current.track);
       }
       return;
     }
