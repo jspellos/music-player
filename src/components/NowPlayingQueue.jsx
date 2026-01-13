@@ -3,7 +3,7 @@ import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
-export function NowPlayingQueue({ queue, queueIndex, currentTime, onReorder, onRemove, onPlay, onClear }) {
+export function NowPlayingQueue({ queue, queueIndex, currentTime, onReorder, onRemove, onPlay, onClear, onToggleCrossfade }) {
   const { setNodeRef, isOver } = useDroppable({
     id: 'queue-drop-zone'
   });
@@ -93,6 +93,7 @@ export function NowPlayingQueue({ queue, queueIndex, currentTime, onReorder, onR
                   isPlaying={index === queueIndex}
                   onPlay={() => onPlay(index)}
                   onRemove={() => onRemove(track.id)}
+                  onToggleCrossfade={() => onToggleCrossfade(track.id)}
                 />
               ))}
             </SortableContext>
@@ -108,7 +109,7 @@ export function NowPlayingQueue({ queue, queueIndex, currentTime, onReorder, onR
   );
 }
 
-function SortableQueueItem({ track, index, isPlaying, onPlay, onRemove }) {
+function SortableQueueItem({ track, index, isPlaying, onPlay, onRemove, onToggleCrossfade }) {
   const {
     attributes,
     listeners,
@@ -148,11 +149,26 @@ function SortableQueueItem({ track, index, isPlaying, onPlay, onRemove }) {
         <div className={`text-sm truncate flex items-center gap-1 ${isPlaying ? 'text-blue-700 font-medium' : 'text-gray-800'}`}>
           {track.isVideo && <VideoIcon />}
           <span className="truncate">{track.title}</span>
+          {track.crossfade && <CrossfadeIcon className="text-orange-500" />}
         </div>
         <div className="text-xs text-gray-500 truncate">
           {track.artist} — {track.album}
         </div>
       </button>
+      
+      {!track.isVideo && (
+        <button
+          onClick={onToggleCrossfade}
+          className={`p-1 rounded transition-opacity flex-shrink-0 ${
+            track.crossfade 
+              ? 'text-orange-500 hover:bg-orange-100' 
+              : 'opacity-0 group-hover:opacity-100 text-gray-400 hover:bg-gray-100 hover:text-orange-500'
+          }`}
+          title={track.crossfade ? 'Crossfade on - click to disable' : 'Enable crossfade for this track'}
+        >
+          <CrossfadeIcon />
+        </button>
+      )}
       
       <button
         onClick={onRemove}
@@ -193,6 +209,14 @@ function VideoIcon() {
   return (
     <svg className="w-4 h-4 text-purple-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+    </svg>
+  );
+}
+
+function CrossfadeIcon({ className = '' }) {
+  return (
+    <svg className={`w-4 h-4 ${className}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" />
     </svg>
   );
 }

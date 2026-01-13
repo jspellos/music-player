@@ -34,6 +34,7 @@ function App() {
   // Queue state - stores full track objects
   const [queue, setQueue] = useState([]);
   const [queueIndex, setQueueIndex] = useState(-1);
+  const [crossfadeDuration, setCrossfadeDuration] = useState(3); // seconds
   
   // Drag state
   const [activeDragItem, setActiveDragItem] = useState(null);
@@ -104,7 +105,16 @@ function App() {
   const playTrackInternal = async (track, fileHandle) => {
     try {
       const isVideo = track.isVideo || false;
+      audioEngine.resetFade(); // Reset any previous fade
       await audioEngine.loadTrack(fileHandle, isVideo);
+      
+      // Set up crossfade if this track has it enabled
+      if (track.crossfade && !isVideo) {
+        audioEngine.setCrossfade(true, crossfadeDuration);
+      } else {
+        audioEngine.setCrossfade(false);
+      }
+      
       audioEngine.play();
       
       // Get and store the duration
@@ -156,10 +166,20 @@ function App() {
       handleAutoNext();
     });
 
+    audioEngine.onCrossfade(() => {
+      // Crossfade triggered - start next track
+      handleAutoNext();
+    });
+
     // Load saved volume
     getSetting('volume', 80).then(v => {
       setVolume(v);
       audioEngine.setVolume(v);
+    });
+    
+    // Load saved crossfade duration
+    getSetting('crossfade_duration', 3).then(d => {
+      setCrossfadeDuration(d);
     });
 
     return () => {
@@ -458,18 +478,15 @@ function App() {
   }, []);
 
   const handlePlayFromQueue = useCallback((index) => {
-    setQueue(currentQueue => {
-      const track = currentQueue[index];
-      if (!track) return currentQueue;
-      
-      const fileHandle = fileHandlesRef.current.get(track.id);
-      if (fileHandle) {
-        setQueueIndex(index);
-        playTrackInternal(track, fileHandle);
-      }
-      return currentQueue;
-    });
-  }, []);
+    const track = queue[index];
+    if (!track) return;
+    
+    const fileHandle = fileHandlesRef.current.get(track.id);
+    if (fileHandle) {
+      setQueueIndex(index);
+      playTrackInternal(track, fileHandle);
+    }
+  }, [queue]);
 
   const handleTogglePlay = useCallback(() => {
     if (isPlaying) {
@@ -521,6 +538,16 @@ function App() {
     setIsPlaying(false);
     setIsVideoPlaying(false);
     audioEngine.stop();
+  }, []);
+
+  const handleToggleCrossfade = useCallback((trackId) => {
+    setQueue(currentQueue =>
+      currentQueue.map(track =>
+        track.id === trackId
+          ? { ...track, crossfade: !track.crossfade }
+          : track
+      )
+    );
   }, []);
 
   // Drag and drop handlers
@@ -715,6 +742,7 @@ function App() {
                 onRemove={handleRemoveFromQueue}
                 onPlay={handlePlayFromQueue}
                 onClear={handleClearQueue}
+                onToggleCrossfade={handleToggleCrossfade}
               />
             </div>
           </div>

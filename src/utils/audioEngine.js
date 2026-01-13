@@ -2,29 +2,52 @@ class AudioEngine {
   constructor() {
     this.audio = new Audio();
     this.video = document.createElement('video');
+    
+    // Keep HTML5 elements at full volume - we control volume via Web Audio gain nodes
+    this.audio.volume = 1;
+    this.video.volume = 1;
+    
     this.activeElement = this.audio; // Current media element (audio or video)
     this.audioContext = null;
     this.sourceNode = null;
     this.videoSourceNode = null;
     this.gainNode = null;
+    this.fadeGainNode = null;
     this.filters = [];
     this.limiter = null;
     this.currentUrl = null;
     this.onEndedCallback = null;
     this.onTimeUpdateCallback = null;
+    this.onCrossfadeCallback = null;
     this.isInitialized = false;
     this.isVideo = false;
+    this.isCrossfading = false;
+    this.crossfadeEnabled = false;
+    this.crossfadeDuration = 3;
+    this.volumeLevel = 1; // Store volume level (0-1)
     
     // Set up audio element events
     this.audio.addEventListener('ended', () => {
       if (!this.isVideo && this.onEndedCallback) {
+        // Always call ended callback - crossfade just means we faded out first
         this.onEndedCallback();
       }
     });
     
     this.audio.addEventListener('timeupdate', () => {
-      if (!this.isVideo && this.onTimeUpdateCallback) {
-        this.onTimeUpdateCallback(this.audio.currentTime);
+      if (!this.isVideo) {
+        if (this.onTimeUpdateCallback) {
+          this.onTimeUpdateCallback(this.audio.currentTime);
+        }
+        
+        // Check for crossfade trigger
+        if (this.crossfadeEnabled && !this.isCrossfading && this.audio.duration) {
+          const timeRemaining = this.audio.duration - this.audio.currentTime;
+          if (timeRemaining <= this.crossfadeDuration && timeRemaining > 0) {
+            this.isCrossfading = true;
+            this.startFadeOut(timeRemaining);
+          }
+        }
       }
     });
     
@@ -40,6 +63,31 @@ class AudioEngine {
         this.onTimeUpdateCallback(this.video.currentTime);
       }
     });
+  }
+
+  setCrossfade(enabled, duration = 3) {
+    this.crossfadeEnabled = enabled;
+    this.crossfadeDuration = duration;
+  }
+
+  startFadeOut(duration) {
+    if (!this.fadeGainNode || !this.audioContext) return;
+    
+    // Cancel any scheduled changes
+    this.fadeGainNode.gain.cancelScheduledValues(this.audioContext.currentTime);
+    
+    // Set current value and ramp to zero
+    this.fadeGainNode.gain.setValueAtTime(1, this.audioContext.currentTime);
+    this.fadeGainNode.gain.linearRampToValueAtTime(0, this.audioContext.currentTime + duration);
+  }
+
+  resetFade() {
+    this.isCrossfading = false;
+    this.crossfadeEnabled = false;
+    if (this.fadeGainNode && this.audioContext) {
+      this.fadeGainNode.gain.cancelScheduledValues(this.audioContext.currentTime);
+      this.fadeGainNode.gain.setValueAtTime(1, this.audioContext.currentTime);
+    }
   }
 
   async initialize() {
@@ -78,7 +126,10 @@ class AudioEngine {
     // Create gain node for volume
     this.gainNode = this.audioContext.createGain();
     
-    // Connect the audio chain: source -> filters -> limiter -> gain -> destination
+    // Create separate gain node for crossfade
+    this.fadeGainNode = this.audioContext.createGain();
+    
+    // Connect the audio chain: source -> filters -> limiter -> gain -> fadeGain -> destination
     let lastNode = this.sourceNode;
     for (const filter of this.filters) {
       lastNode.connect(filter);
@@ -86,7 +137,8 @@ class AudioEngine {
     }
     lastNode.connect(this.limiter);
     this.limiter.connect(this.gainNode);
-    this.gainNode.connect(this.audioContext.destination);
+    this.gainNode.connect(this.fadeGainNode);
+    this.fadeGainNode.connect(this.audioContext.destination);
     
     this.isInitialized = true;
   }
@@ -100,6 +152,7 @@ class AudioEngine {
     this.videoSourceNode = this.audioContext.createMediaElementSource(this.video);
     
     // Connect video to the same chain (starting at first filter)
+    // The chain goes: filters -> limiter -> gainNode -> fadeGainNode -> destination
     this.videoSourceNode.connect(this.filters[0]);
   }
 
@@ -182,8 +235,12 @@ class AudioEngine {
 
   setVolume(value) {
     // value is 0-100
-    this.audio.volume = value / 100;
-    this.video.volume = value / 100;
+    this.volumeLevel = value / 100;
+    
+    // Use the gain node for volume control (not the HTML5 element)
+    if (this.gainNode && this.audioContext) {
+      this.gainNode.gain.setValueAtTime(this.volumeLevel, this.audioContext.currentTime);
+    }
   }
 
   setEQ(band, value) {
@@ -218,6 +275,10 @@ class AudioEngine {
 
   onTimeUpdate(callback) {
     this.onTimeUpdateCallback = callback;
+  }
+
+  onCrossfade(callback) {
+    this.onCrossfadeCallback = callback;
   }
 
   dispose() {
