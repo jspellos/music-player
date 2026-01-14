@@ -11,24 +11,55 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background: #1a1a2e;
+  color: #e0e0e0;
 }
 
-/* Custom scrollbar */
+/* Background image layer */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  /* To change the background image, replace background.jpg in the public folder */
+  background-image: url('/background.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  opacity: 0.35;
+  z-index: -2;
+}
+
+/* Dark overlay with purple/blue tint */
+body::after {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, rgba(26, 26, 46, 0.7) 0%, rgba(45, 25, 75, 0.65) 50%, rgba(22, 33, 62, 0.7) 100%);
+  z-index: -1;
+}
+
+/* Custom scrollbar - dark theme */
 ::-webkit-scrollbar {
   width: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f1f1;
+  background: #252542;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
+  background: #4a4a6a;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #a1a1a1;
+  background: #5a5a7a;
 }
 
 /* Prevent text selection during resize */
@@ -36,7 +67,7 @@ body {
   user-select: none;
 }
 
-/* Range input styling */
+/* Range input styling - dark theme */
 input[type="range"] {
   -webkit-appearance: none;
   background: transparent;
@@ -47,14 +78,80 @@ input[type="range"]::-webkit-slider-thumb {
   height: 16px;
   width: 16px;
   border-radius: 50%;
-  background: #2563eb;
+  background: linear-gradient(135deg, #ff6b6b, #feca57);
   cursor: pointer;
   margin-top: -6px;
+  box-shadow: 0 0 10px rgba(255, 107, 107, 0.5);
 }
 
 input[type="range"]::-webkit-slider-runnable-track {
   width: 100%;
   height: 4px;
-  background: #e5e7eb;
+  background: #3a3a5a;
   border-radius: 2px;
+}
+
+/* Gradient text utilities */
+.gradient-text-pink {
+  background: linear-gradient(135deg, #ff6b6b, #ff8e8e);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.gradient-text-teal {
+  background: linear-gradient(135deg, #4ecdc4, #44a08d);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.gradient-text-purple {
+  background: linear-gradient(135deg, #a855f7, #6366f1);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Frosted glass effect - more transparent to show background */
+.glass-panel {
+  background: rgba(20, 20, 35, 0.5);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Accent panel variant with subtle color */
+.glass-panel-accent {
+  background: linear-gradient(135deg, rgba(78, 205, 196, 0.1) 0%, rgba(20, 20, 35, 0.5) 50%, rgba(255, 107, 107, 0.1) 100%);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Glowing border for active items */
+.glow-border {
+  box-shadow: 0 0 15px rgba(78, 205, 196, 0.5), 0 0 30px rgba(78, 205, 196, 0.2);
+  border: 1px solid rgba(78, 205, 196, 0.5);
+}
+
+/* Gradient button */
+.gradient-button {
+  background: linear-gradient(135deg, #ff6b6b, #feca57);
+  transition: all 0.3s ease;
+}
+
+.gradient-button:hover {
+  box-shadow: 0 0 20px rgba(255, 107, 107, 0.5);
+  transform: scale(1.05);
+}
+
+/* Card hover effects */
+.card-hover {
+  transition: all 0.2s ease;
+}
+
+.card-hover:hover {
+  background: rgba(255, 255, 255, 0.05);
+  transform: translateX(4px);
 }

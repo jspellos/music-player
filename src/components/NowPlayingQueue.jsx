@@ -2,8 +2,9 @@ import React, { useMemo } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { AlbumArt } from './AlbumArt';
 
-export function NowPlayingQueue({ queue, queueIndex, currentTime, onReorder, onRemove, onPlay, onClear, onToggleCrossfade }) {
+export function NowPlayingQueue({ queue, queueIndex, currentTime, onReorder, onRemove, onPlay, onClear, onToggleCrossfade, getFileHandle }) {
   const { setNodeRef, isOver } = useDroppable({
     id: 'queue-drop-zone'
   });
@@ -43,15 +44,15 @@ export function NowPlayingQueue({ queue, queueIndex, currentTime, onReorder, onR
   return (
     <div 
       ref={setNodeRef}
-      className={`h-full flex flex-col border-l border-gray-200 transition-colors ${
-        isOver ? 'bg-blue-50' : 'bg-gray-50'
+      className={`h-full flex flex-col border-l border-white/10 transition-colors ${
+        isOver ? 'bg-teal-500/10' : 'glass-panel'
       }`}
     >
-      <div className="p-3 border-b border-gray-200 bg-white flex items-center justify-between">
+      <div className="p-3 border-b border-white/10 flex items-center justify-between">
         <div>
-          <h2 className="font-semibold text-gray-800">
+          <h2 className="font-semibold gradient-text-teal">
             Now Playing
-            {queue.length > 0 && <span className="text-gray-400 font-normal ml-2">({queue.length})</span>}
+            {queue.length > 0 && <span className="text-gray-500 font-normal ml-2">({queue.length})</span>}
           </h2>
           {queue.length > 0 && remainingDuration > 0 && (
             <div className="text-xs text-gray-500">
@@ -63,7 +64,7 @@ export function NowPlayingQueue({ queue, queueIndex, currentTime, onReorder, onR
         {queue.length > 0 && (
           <button
             onClick={onClear}
-            className="text-sm text-gray-500 hover:text-red-600"
+            className="text-sm text-gray-500 hover:text-red-400"
           >
             Clear
           </button>
@@ -72,15 +73,15 @@ export function NowPlayingQueue({ queue, queueIndex, currentTime, onReorder, onR
       
       <div className="flex-1 overflow-y-auto p-2 min-h-0">
         {queue.length === 0 ? (
-          <div className={`h-full flex flex-col items-center justify-center text-gray-400 text-sm border-2 border-dashed rounded-lg transition-colors ${
-            isOver ? 'border-blue-400 bg-blue-100 text-blue-600' : 'border-gray-300'
+          <div className={`h-full flex flex-col items-center justify-center text-gray-500 text-sm border-2 border-dashed rounded-lg transition-colors ${
+            isOver ? 'border-teal-400 bg-teal-500/10 text-teal-400' : 'border-white/20'
           }`}>
             <DropIcon className="w-12 h-12 mb-3" />
             <p className="font-medium">Drop tracks here</p>
             <p className="text-xs mt-1">or click + in the library</p>
           </div>
         ) : (
-          <div className={`min-h-full rounded-lg transition-colors ${isOver ? 'bg-blue-100 ring-2 ring-blue-400' : ''}`}>
+          <div className={`min-h-full rounded-lg transition-colors ${isOver ? 'bg-teal-500/10 ring-2 ring-teal-400' : ''}`}>
             <SortableContext
               items={queue.map(item => item.id)}
               strategy={verticalListSortingStrategy}
@@ -94,11 +95,12 @@ export function NowPlayingQueue({ queue, queueIndex, currentTime, onReorder, onR
                   onPlay={() => onPlay(index)}
                   onRemove={() => onRemove(track.id)}
                   onToggleCrossfade={() => onToggleCrossfade(track.id)}
+                  getFileHandle={getFileHandle}
                 />
               ))}
             </SortableContext>
             {isOver && (
-              <div className="p-2 text-center text-blue-600 text-sm border-2 border-dashed border-blue-400 rounded-lg mt-1">
+              <div className="p-2 text-center text-teal-400 text-sm border-2 border-dashed border-teal-400 rounded-lg mt-1">
                 Drop to add to queue
               </div>
             )}
@@ -109,7 +111,7 @@ export function NowPlayingQueue({ queue, queueIndex, currentTime, onReorder, onR
   );
 }
 
-function SortableQueueItem({ track, index, isPlaying, onPlay, onRemove, onToggleCrossfade }) {
+function SortableQueueItem({ track, index, isPlaying, onPlay, onRemove, onToggleCrossfade, getFileHandle }) {
   const {
     attributes,
     listeners,
@@ -124,32 +126,42 @@ function SortableQueueItem({ track, index, isPlaying, onPlay, onRemove, onToggle
     transition,
   };
 
+  const fileHandle = getFileHandle(track.id);
+  const albumKey = `${track.artist}/${track.album}`;
+
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className={`flex items-center gap-2 p-2 rounded mb-1 group ${
+      className={`flex items-center gap-2 p-2 rounded-lg mb-1 group ${
         isDragging ? 'opacity-50 z-50' : ''
       } ${
-        isPlaying ? 'bg-blue-100 border border-blue-300' : 'bg-white border border-gray-200 hover:border-gray-300'
+        isPlaying ? 'glow-border bg-teal-500/20' : 'bg-white/5 border border-white/10 hover:border-white/20 hover:bg-white/10'
       }`}
     >
       <button
-        className="text-gray-400 hover:text-gray-600 cursor-grab active:cursor-grabbing touch-none"
+        className="text-gray-500 hover:text-gray-300 cursor-grab active:cursor-grabbing touch-none"
         {...attributes}
         {...listeners}
       >
         <GripIcon />
       </button>
       
+      <AlbumArt 
+        fileHandle={fileHandle} 
+        albumKey={albumKey}
+        size="sm" 
+        className="flex-shrink-0"
+      />
+      
       <button
         onClick={onPlay}
         className="flex-1 text-left truncate min-w-0"
       >
-        <div className={`text-sm truncate flex items-center gap-1 ${isPlaying ? 'text-blue-700 font-medium' : 'text-gray-800'}`}>
+        <div className={`text-sm truncate flex items-center gap-1 ${isPlaying ? 'text-teal-400 font-medium' : 'text-gray-200'}`}>
           {track.isVideo && <VideoIcon />}
           <span className="truncate">{track.title}</span>
-          {track.crossfade && <CrossfadeIcon className="text-orange-500" />}
+          {track.crossfade && <CrossfadeIcon className="text-orange-400" />}
         </div>
         <div className="text-xs text-gray-500 truncate">
           {track.artist} — {track.album}
@@ -161,8 +173,8 @@ function SortableQueueItem({ track, index, isPlaying, onPlay, onRemove, onToggle
           onClick={onToggleCrossfade}
           className={`p-1 rounded transition-opacity flex-shrink-0 ${
             track.crossfade 
-              ? 'text-orange-500 hover:bg-orange-100' 
-              : 'opacity-0 group-hover:opacity-100 text-gray-400 hover:bg-gray-100 hover:text-orange-500'
+              ? 'text-orange-400 hover:bg-orange-500/20' 
+              : 'opacity-0 group-hover:opacity-100 text-gray-500 hover:bg-white/10 hover:text-orange-400'
           }`}
           title={track.crossfade ? 'Crossfade on - click to disable' : 'Enable crossfade for this track'}
         >
@@ -172,7 +184,7 @@ function SortableQueueItem({ track, index, isPlaying, onPlay, onRemove, onToggle
       
       <button
         onClick={onRemove}
-        className="p-1 opacity-0 group-hover:opacity-100 hover:bg-red-100 rounded text-red-500 transition-opacity flex-shrink-0"
+        className="p-1 opacity-0 group-hover:opacity-100 hover:bg-red-500/20 rounded text-red-400 transition-opacity flex-shrink-0"
         title="Remove from queue"
       >
         <XIcon />

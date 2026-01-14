@@ -1,4 +1,5 @@
 import React from 'react';
+import { AlbumArt } from './AlbumArt';
 
 export function PlayerControls({ 
   isPlaying, 
@@ -10,7 +11,8 @@ export function PlayerControls({
   onNext, 
   onPrevious, 
   onSeek, 
-  onVolumeChange 
+  onVolumeChange,
+  getFileHandle
 }) {
   const formatTime = (seconds) => {
     if (!seconds || !isFinite(seconds)) return '0:00';
@@ -28,18 +30,29 @@ export function PlayerControls({
 
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
 
+  const fileHandle = currentTrack ? getFileHandle(currentTrack.id) : null;
+  const albumKey = currentTrack ? `${currentTrack.artist}/${currentTrack.album}` : null;
+
   return (
-    <div className="bg-white border-t border-gray-200 p-4">
-      {/* Track Info */}
-      <div className="flex items-center justify-between mb-3">
+    <div className="glass-panel-accent border-t border-white/10 p-4">
+      {/* Track Info with Album Art */}
+      <div className="flex items-center gap-4 mb-3">
+        {currentTrack && (
+          <AlbumArt 
+            fileHandle={fileHandle} 
+            albumKey={albumKey}
+            size="xl" 
+            className="flex-shrink-0 shadow-lg"
+          />
+        )}
         <div className="flex-1 min-w-0">
           {currentTrack ? (
             <>
-              <div className="font-medium text-gray-800 truncate">{currentTrack.title}</div>
+              <div className="font-medium text-gray-200 truncate text-lg">{currentTrack.title}</div>
               <div className="text-sm text-gray-500 truncate">{currentTrack.artist} — {currentTrack.album}</div>
             </>
           ) : (
-            <div className="text-gray-400">No track selected</div>
+            <div className="text-gray-500">No track selected</div>
           )}
         </div>
       </div>
@@ -47,16 +60,23 @@ export function PlayerControls({
       {/* Progress Bar */}
       <div className="mb-3">
         <div
-          className="h-2 bg-gray-200 rounded-full cursor-pointer relative"
+          className="h-2 bg-white/10 rounded-full cursor-pointer relative"
           onClick={handleSeek}
         >
           <div
-            className="h-full bg-blue-500 rounded-full transition-all"
-            style={{ width: `${progress}%` }}
+            className="h-full rounded-full transition-all"
+            style={{ 
+              width: `${progress}%`,
+              background: 'linear-gradient(90deg, #ff6b6b, #feca57)'
+            }}
           />
           <div
-            className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-blue-600 rounded-full shadow"
-            style={{ left: `calc(${progress}% - 6px)` }}
+            className="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full shadow-lg"
+            style={{ 
+              left: `calc(${progress}% - 6px)`,
+              background: 'linear-gradient(135deg, #ff6b6b, #feca57)',
+              boxShadow: '0 0 10px rgba(255, 107, 107, 0.5)'
+            }}
           />
         </div>
         <div className="flex justify-between text-xs text-gray-500 mt-1">
@@ -69,7 +89,7 @@ export function PlayerControls({
       <div className="flex items-center justify-center gap-4">
         <button
           onClick={onPrevious}
-          className="p-2 hover:bg-gray-100 rounded-full text-gray-600 hover:text-gray-800"
+          className="p-2 hover:bg-white/10 rounded-full text-gray-400 hover:text-gray-200 transition"
           disabled={!currentTrack}
         >
           <PreviousIcon />
@@ -77,7 +97,7 @@ export function PlayerControls({
         
         <button
           onClick={onTogglePlay}
-          className="p-3 bg-blue-500 hover:bg-blue-600 rounded-full text-white shadow-lg"
+          className="p-3 gradient-button rounded-full text-white shadow-lg"
           disabled={!currentTrack}
         >
           {isPlaying ? <PauseIcon /> : <PlayIcon />}
@@ -85,7 +105,7 @@ export function PlayerControls({
         
         <button
           onClick={onNext}
-          className="p-2 hover:bg-gray-100 rounded-full text-gray-600 hover:text-gray-800"
+          className="p-2 hover:bg-white/10 rounded-full text-gray-400 hover:text-gray-200 transition"
           disabled={!currentTrack}
         >
           <NextIcon />
@@ -100,7 +120,7 @@ export function PlayerControls({
             max="100"
             value={volume}
             onChange={(e) => onVolumeChange(Number(e.target.value))}
-            className="w-24 accent-blue-500"
+            className="w-24"
           />
         </div>
       </div>

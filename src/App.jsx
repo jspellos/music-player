@@ -40,7 +40,7 @@ function App() {
   const [activeDragItem, setActiveDragItem] = useState(null);
   
   // Resizable panel state
-  const [libraryWidth, setLibraryWidth] = useState(320);
+  const [libraryWidth, setLibraryWidth] = useState(500);
   const [isResizing, setIsResizing] = useState(false);
   
   // File handles stored in memory (can't persist these)
@@ -84,7 +84,7 @@ function App() {
     if (!isResizing) return;
     
     const handleMouseMove = (e) => {
-      const newWidth = Math.max(200, Math.min(600, e.clientX));
+      const newWidth = Math.max(300, Math.min(900, e.clientX));
       setLibraryWidth(newWidth);
     };
     
@@ -610,33 +610,39 @@ function App() {
 
   if (!hasFolder) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
-        <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full text-center">
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <div className="glass-panel rounded-2xl p-8 max-w-md w-full text-center">
           <div className="mb-6">
-            <svg className="w-16 h-16 mx-auto text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-16 h-16 mx-auto" fill="none" stroke="url(#music-gradient)" viewBox="0 0 24 24">
+              <defs>
+                <linearGradient id="music-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#ff6b6b" />
+                  <stop offset="100%" stopColor="#feca57" />
+                </linearGradient>
+              </defs>
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold text-gray-800 mb-2">Jim Media Player</h1>
-          <p className="text-gray-600 mb-6">
+          <h1 className="text-2xl font-bold gradient-text-pink mb-2">Jim Media Player</h1>
+          <p className="text-gray-400 mb-6">
             Select your music folder to get started. Your library is organized by artist and album folders.
           </p>
           
           {isLoading ? (
-            <div className="text-gray-600">
-              <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-3"></div>
+            <div className="text-gray-400">
+              <div className="animate-spin w-8 h-8 border-4 border-t-transparent rounded-full mx-auto mb-3" style={{ borderColor: '#ff6b6b', borderTopColor: 'transparent' }}></div>
               <p>Scanning... {scanProgress} tracks found</p>
             </div>
           ) : (
             <>
               <button
                 onClick={selectFolder}
-                className="bg-blue-500 hover:bg-blue-600 text-white font-medium py-3 px-6 rounded-lg transition shadow-md"
+                className="gradient-button text-white font-medium py-3 px-6 rounded-lg shadow-lg"
               >
                 Select Music Folder
               </button>
               {useFallbackPicker && (
-                <p className="text-xs text-gray-400 mt-3">
+                <p className="text-xs text-gray-500 mt-3">
                   Mobile mode: Select your music folder from the file picker
                 </p>
               )}
@@ -665,15 +671,15 @@ function App() {
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <div className="h-screen flex flex-col bg-gray-100">
+      <div className="h-screen flex flex-col">
         {/* Header */}
-        <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
-          <h1 className="text-xl font-bold text-gray-800">Jim Media Player</h1>
+        <header className="glass-panel-accent border-b border-white/10 px-4 py-3 flex items-center justify-between">
+          <h1 className="text-xl font-bold gradient-text-pink">Jim Media Player</h1>
           <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-500">{tracks.length} tracks</span>
+            <span className="text-sm text-gray-400">{tracks.length} tracks</span>
             <button
               onClick={() => setShowPlaylists(true)}
-              className="p-2 hover:bg-gray-100 rounded-lg text-gray-600"
+              className="p-2 hover:bg-white/10 rounded-lg text-gray-300 transition"
               title="Playlists"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -682,7 +688,7 @@ function App() {
             </button>
             <button
               onClick={() => setShowEQ(true)}
-              className="p-2 hover:bg-gray-100 rounded-lg text-gray-600"
+              className="p-2 hover:bg-white/10 rounded-lg text-gray-300 transition"
               title="Equalizer"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -691,7 +697,7 @@ function App() {
             </button>
             <button
               onClick={selectFolder}
-              className="p-2 hover:bg-gray-100 rounded-lg text-gray-600"
+              className="p-2 hover:bg-white/10 rounded-lg text-gray-300 transition"
               title="Change folder"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -710,12 +716,13 @@ function App() {
               onPlayTrack={handlePlayTrack}
               onAddToQueue={handleAddToQueue}
               onAddAlbumToQueue={handleAddAlbumToQueue}
+              getFileHandle={(trackId) => fileHandlesRef.current.get(trackId)}
             />
           </div>
           
           {/* Resizer */}
           <div
-            className={`w-1 cursor-col-resize hover:bg-blue-400 transition-colors flex-shrink-0 ${isResizing ? 'bg-blue-500' : 'bg-gray-300'}`}
+            className={`w-1 cursor-col-resize hover:bg-teal-400 transition-colors flex-shrink-0 ${isResizing ? 'bg-teal-500' : 'bg-white/20'}`}
             onMouseDown={handleResizeStart}
           />
 
@@ -743,6 +750,7 @@ function App() {
                 onPlay={handlePlayFromQueue}
                 onClear={handleClearQueue}
                 onToggleCrossfade={handleToggleCrossfade}
+                getFileHandle={(trackId) => fileHandlesRef.current.get(trackId)}
               />
             </div>
           </div>
@@ -760,6 +768,7 @@ function App() {
           onPrevious={handlePrevious}
           onSeek={handleSeek}
           onVolumeChange={handleVolumeChange}
+          getFileHandle={(trackId) => fileHandlesRef.current.get(trackId)}
         />
 
         {/* EQ Modal */}
@@ -789,11 +798,11 @@ function App() {
       {/* Drag Overlay */}
       <DragOverlay>
         {activeDragItem ? (
-          <div className="bg-white border border-blue-400 rounded shadow-lg p-2 opacity-90">
-            <div className="text-sm font-medium">
+          <div className="glass-panel border border-teal-400/50 rounded-lg shadow-lg p-2 opacity-90">
+            <div className="text-sm font-medium text-gray-200">
               {activeDragItem.isAlbum ? `📀 ${activeDragItem.title}` : activeDragItem.title}
             </div>
-            <div className="text-xs text-gray-500">
+            <div className="text-xs text-gray-400">
               {activeDragItem.isAlbum 
                 ? `${activeDragItem.artist} • ${activeDragItem.trackCount} tracks`
                 : activeDragItem.artist
