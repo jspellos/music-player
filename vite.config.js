@@ -3,6 +3,24 @@ import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig({
+  define: {
+    // Polyfill for libraries that expect Node.js globals
+    global: 'globalThis',
+  },
+  resolve: {
+    alias: {
+      // Polyfill Buffer for browser
+      buffer: 'buffer',
+    },
+  },
+  optimizeDeps: {
+    esbuildOptions: {
+      // Node.js global to browser globalThis
+      define: {
+        global: 'globalThis',
+      },
+    },
+  },
   plugins: [
     react(),
     VitePWA({
